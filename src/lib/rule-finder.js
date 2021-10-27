@@ -19,12 +19,20 @@ function _getConfigFile(specifiedFile) {
 }
 
 function _getConfigs(configFile, files) {
-  const cliEngine = new eslint.CLIEngine({
-    // Ignore any config applicable depending on the location on the filesystem
-    useEslintrc: false,
-    // Point to the particular config
-    configFile
-  });
+  const cliEngine = eslint.ESLint
+    ?  new eslint.ESLint({
+      // Ignore any config applicable depending on the location on the filesystem
+      useEslintrc: false,
+      // Point to the particular config
+      overrideConfigFile: configFile
+    })
+    : new eslint.CLIEngine({
+      // Ignore any config applicable depending on the location on the filesystem
+      useEslintrc: false,
+      // Point to the particular config
+      configFile
+    });
+
   return new Set(files
                  .map(filePath => cliEngine.isPathIgnored(filePath) ? false : cliEngine.getConfigForFile(filePath))
                  .filter(Boolean));
@@ -67,7 +75,7 @@ function _getPluginRules(config) {
 }
 
 function _getCoreRules() {
-  return eslint.linter.getRules();
+  return (eslint.Linter ? new eslint.Linter() : eslint.linter).getRules();
 }
 
 function _filterRuleNames(ruleNames, rules, predicate) {
