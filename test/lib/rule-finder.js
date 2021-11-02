@@ -6,8 +6,13 @@ const semver = require('semver');
 const eslintPkg = require('eslint/package.json');
 
 let ModuleResolver;
+let eslintRC;
 try {
-  if (semver.satisfies(eslintPkg.version, '>= 7.12')) {
+  const eslintRCPkg = require('@eslint/eslintrc/package.json');
+  if (semver.satisfies(eslintRCPkg.version, '>= 1')) {
+    eslintRC = require('@eslint/eslintrc');
+    ({ Legacy: ModuleResolver } = eslintRC);
+  } else if (semver.satisfies(eslintPkg.version, '>= 7.12')) {
     // eslint 7.12+
     ModuleResolver = require('@eslint/eslintrc/lib/shared/relative-module-resolver');
   } else {
@@ -78,6 +83,11 @@ const getRuleFinder = proxyquire('../../src/lib/rule-finder', {
   // name passed in `name` relative to the path in `relative`. We have to
   // override that function, otherwise eslint fails to "load" our plugins.
   //
+  '@eslint/eslintrc': Object.assign({
+    Legacy: Object.assign({}, eslintRC, {
+      ModuleResolver: moduleResolver,
+    }),
+  }, eslintRC),
   '../shared/relative-module-resolver': moduleResolver, // in eslint < 7.12, from eslint/lib/cli-engine/config-array-factory.js
   './shared/relative-module-resolver': moduleResolver, // in eslint 7.12+, from @eslint/eslintrc/lib/config-array-factory.js
   'eslint-plugin-plugin': {
@@ -171,6 +181,11 @@ const getRuleFinderForDedupeTests = proxyquire('../../src/lib/rule-finder', {
       }
     }
   },
+  '@eslint/eslintrc': Object.assign({
+    Legacy: Object.assign({}, eslintRC, {
+      ModuleResolver: moduleResolver,
+    }),
+  }, eslintRC),
   // See the long comment in `getRuleFinder` above to learn what the point of this override is.
   '../shared/relative-module-resolver': dedupeModuleResolver, // in eslint < 7.12, from eslint/lib/cli-engine/config-array-factory.js
   './shared/relative-module-resolver': dedupeModuleResolver, // in eslint 7.12+, from @eslint/eslintrc/lib/config-array-factory.js
