@@ -1,70 +1,27 @@
 const path = require('path');
+const module = require('module');
 const assert = require('assert');
 const proxyquire = require('proxyquire');
 
 const semver = require('semver');
 const eslintPkg = require('eslint/package.json');
 
-let ModuleResolver;
-let eslintRC;
-try {
-  const eslintRCPkg = require('@eslint/eslintrc/package.json');
-  if (semver.satisfies(eslintRCPkg.version, '>= 1')) {
-    eslintRC = require('@eslint/eslintrc');
-    ({ Legacy: ModuleResolver } = eslintRC);
-  } else if (semver.satisfies(eslintPkg.version, '>= 7.12')) {
-    // eslint 7.12+
-    ModuleResolver = require('@eslint/eslintrc/lib/shared/relative-module-resolver');
-  } else {
-    throw { code: 'MODULE_NOT_FOUND' };
-  }
-} catch (err) {
-  if (err.code !== 'MODULE_NOT_FOUND') {
-    throw err;
-  }
-  try {
-    // eslint v6 - v7.11: load the actual module
-    ModuleResolver = require('eslint/lib/shared/relative-module-resolver');
-  } catch (err) {
-    if (err.code !== 'MODULE_NOT_FOUND') {
-      throw err;
-    }
-    // eslint < 6: ModuleResolver is `undefined`, which is okay. The proxyquire
-    // override for ../shared/relative-module-resolver won't be used because
-    // eslint < 6 does not have that module and so does not try to load it.
-    ModuleResolver = undefined;
-  }
-}
-
 const processCwd = process.cwd;
 
 const eslintVersion = semver.satisfies(eslintPkg.version, '< 5') ? 'prior-v5' : 'post-v5';
 const supportsScopedPlugins = semver.satisfies(eslintPkg.version, '>= 5');
 
-const moduleResolver = {
-  resolve(name, relative) {
-    // The strategy is simple: if called with one of our plugins, just return
-    // the module name, as-is. This is a lie because what we return is not a
-    // path, but it is simple, and works. Otherwise, we just call the original
-    // `resolve` from the stock module.
-    return [
-      'eslint-plugin-plugin',
-      'eslint-plugin-no-rules',
-      '@scope/eslint-plugin-scoped-plugin',
-      '@scope/eslint-plugin',
-      '@scope-with-dash/eslint-plugin-scoped-with-dash-plugin',
-      '@scope-with-dash/eslint-plugin'
-    ].includes(name) ?
-        name :
-        ModuleResolver.resolve(name, relative);
-  },
-  '@global': true,
-  '@noCallThru': true
-};
+// The strategy is simple: if called with one of our plugins, just return
+// the module name, as-is. This is a lie because what we return is not a
+// path, but it is simple, and works. Otherwise, we just call the original
+// `resolve` from the stock module.
+const mockResolve = (plugins, relative, name) => (
+  plugins.includes(name) ? name : module.createRequire(relative).resolve(name)
+);
 
 const getRuleFinder = proxyquire('../../src/lib/rule-finder', {
   eslint: {
-    linter: {
+    Linter: class {
       getRules() {
         return new Map()
           .set('foo-rule', {})
@@ -74,22 +31,19 @@ const getRuleFinder = proxyquire('../../src/lib/rule-finder', {
       }
     }
   },
-  //
-  // This following module override is needed for eslint v6 and over. The module
-  // path that we pass here is literally the one used in eslint (specifically in
-  // eslint/lib/cli-engine/config-array-factory.js)
-  //
-  // The stock `resolve` method attempts to resolve to a file path the module
-  // name passed in `name` relative to the path in `relative`. We have to
-  // override that function, otherwise eslint fails to "load" our plugins.
-  //
-  '@eslint/eslintrc': Object.assign({
-    Legacy: Object.assign({}, eslintRC, {
-      ModuleResolver: moduleResolver,
+  module: {
+    createRequire: (relative) => Object.assign((id) => require(id), {
+      resolve: mockResolve.bind(null, [
+        'eslint-plugin-plugin',
+        'eslint-plugin-no-rules',
+        '@scope/eslint-plugin-scoped-plugin',
+        '@scope/eslint-plugin',
+        '@scope-with-dash/eslint-plugin-scoped-with-dash-plugin',
+        '@scope-with-dash/eslint-plugin'
+      ], relative)
     }),
-  }, eslintRC),
-  '../shared/relative-module-resolver': moduleResolver, // in eslint < 7.12, from eslint/lib/cli-engine/config-array-factory.js
-  './shared/relative-module-resolver': moduleResolver, // in eslint 7.12+, from @eslint/eslintrc/lib/config-array-factory.js
+    '@global': true
+  },
   'eslint-plugin-plugin': {
     rules: {
       'foo-rule': {},
@@ -160,18 +114,9 @@ function assertDeepEqual(a, b) {
   return assert.deepEqual(a, bWithoutScoped);
 }
 
-const dedupeModuleResolver = {
-  resolve(name, relative) {
-    return name === 'eslint-plugin-plugin' ?
-      name :
-      ModuleResolver.resolve(name, relative);
-  },
-  '@global': true,
-  '@noCallThru': true
-};
 const getRuleFinderForDedupeTests = proxyquire('../../src/lib/rule-finder', {
   eslint: {
-    linter: {
+    Linter: class {
       getRules() {
         return new Map()
           .set('foo-rule', {})
@@ -181,14 +126,14 @@ const getRuleFinderForDedupeTests = proxyquire('../../src/lib/rule-finder', {
       }
     }
   },
-  '@eslint/eslintrc': Object.assign({
-    Legacy: Object.assign({}, eslintRC, {
-      ModuleResolver: moduleResolver,
+  module: {
+    createRequire: (relative) => Object.assign((id) => require(id), {
+      resolve: mockResolve.bind(null, [
+        'eslint-plugin-plugin'
+      ], relative)
     }),
-  }, eslintRC),
-  // See the long comment in `getRuleFinder` above to learn what the point of this override is.
-  '../shared/relative-module-resolver': dedupeModuleResolver, // in eslint < 7.12, from eslint/lib/cli-engine/config-array-factory.js
-  './shared/relative-module-resolver': dedupeModuleResolver, // in eslint 7.12+, from @eslint/eslintrc/lib/config-array-factory.js
+    '@global': true
+  },
   'eslint-plugin-plugin': {
     rules: {
       'duplicate-foo-rule': {},
