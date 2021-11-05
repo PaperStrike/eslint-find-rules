@@ -6,15 +6,20 @@ const semver = require('semver');
 const eslintPkg = require('eslint/package.json');
 
 let ModuleResolver;
+let ModuleResolverResolve;
 let eslintRC;
 try {
-  const eslintRCPkg = require('@eslint/eslintrc/package.json');
-  if (semver.satisfies(eslintRCPkg.version, '>= 1')) {
-    eslintRC = require('@eslint/eslintrc');
-    ({ Legacy: ModuleResolver } = eslintRC);
-  } else if (semver.satisfies(eslintPkg.version, '>= 7.12')) {
-    // eslint 7.12+
-    ModuleResolver = require('@eslint/eslintrc/lib/shared/relative-module-resolver');
+  // eslint v7.12+: load from @eslint/eslintrc
+  if (semver.satisfies(eslintPkg.version, '>= 7.12')) {
+    eslintRC = proxyquire('@eslint/eslintrc', {
+      // @eslint/eslintrc 1+ (eslint v8+) uses `createRequire` to load plugins,
+      // which proxyquire doesn't proxy yet.
+      module: {
+        createRequire: () => require,
+        '@global': true
+      }
+    });
+    ({ ModuleResolver } = eslintRC.Legacy);
   } else {
     throw { code: 'MODULE_NOT_FOUND' };
   }
@@ -56,21 +61,33 @@ const moduleResolver = {
       '@scope-with-dash/eslint-plugin'
     ].includes(name) ?
         name :
-        ModuleResolver.resolve(name, relative);
+        ModuleResolverResolve(name, relative);
   },
   '@global': true,
   '@noCallThru': true
 };
 
+if (ModuleResolver) {
+  ModuleResolverResolve = ModuleResolver.resolve;
+  ModuleResolver.resolve = moduleResolver.resolve;
+}
+
+const rules = [
+  ['foo-rule', {}],
+  ['old-rule', {meta: {deprecated: true}}],
+  ['bar-rule', {}],
+  ['baz-rule', {}]
+];
 const getRuleFinder = proxyquire('../../src/lib/rule-finder', {
   eslint: {
+    Linter: class {
+      getRules() {
+        return new Map(rules);
+      }
+    },
     linter: {
       getRules() {
-        return new Map()
-          .set('foo-rule', {})
-          .set('old-rule', {meta: {deprecated: true}})
-          .set('bar-rule', {})
-          .set('baz-rule', {});
+        return new Map(rules);
       }
     }
   },
@@ -83,13 +100,10 @@ const getRuleFinder = proxyquire('../../src/lib/rule-finder', {
   // name passed in `name` relative to the path in `relative`. We have to
   // override that function, otherwise eslint fails to "load" our plugins.
   //
-  '@eslint/eslintrc': Object.assign({
-    Legacy: Object.assign({}, eslintRC, {
-      ModuleResolver: moduleResolver,
-    }),
-  }, eslintRC),
+  '@eslint/eslintrc': Object.assign({}, eslintRC, {
+    '@global': true
+  }),
   '../shared/relative-module-resolver': moduleResolver, // in eslint < 7.12, from eslint/lib/cli-engine/config-array-factory.js
-  './shared/relative-module-resolver': moduleResolver, // in eslint 7.12+, from @eslint/eslintrc/lib/config-array-factory.js
   'eslint-plugin-plugin': {
     rules: {
       'foo-rule': {},
@@ -160,35 +174,30 @@ function assertDeepEqual(a, b) {
   return assert.deepEqual(a, bWithoutScoped);
 }
 
-const dedupeModuleResolver = {
-  resolve(name, relative) {
-    return name === 'eslint-plugin-plugin' ?
-      name :
-      ModuleResolver.resolve(name, relative);
-  },
-  '@global': true,
-  '@noCallThru': true
-};
+const dedupeRules = [
+  ['foo-rule', {}],
+  ['bar-rule', {}],
+  ['plugin/duplicate-foo-rule', {}],
+  ['plugin/duplicate-bar-rule', {}]
+];
 const getRuleFinderForDedupeTests = proxyquire('../../src/lib/rule-finder', {
   eslint: {
+    Linter: class {
+      getRules() {
+        return new Map(dedupeRules);
+      }
+    },
     linter: {
       getRules() {
-        return new Map()
-          .set('foo-rule', {})
-          .set('bar-rule', {})
-          .set('plugin/duplicate-foo-rule', {})
-          .set('plugin/duplicate-bar-rule', {});
+        return new Map(dedupeRules);
       }
     }
   },
-  '@eslint/eslintrc': Object.assign({
-    Legacy: Object.assign({}, eslintRC, {
-      ModuleResolver: moduleResolver,
-    }),
-  }, eslintRC),
   // See the long comment in `getRuleFinder` above to learn what the point of this override is.
-  '../shared/relative-module-resolver': dedupeModuleResolver, // in eslint < 7.12, from eslint/lib/cli-engine/config-array-factory.js
-  './shared/relative-module-resolver': dedupeModuleResolver, // in eslint 7.12+, from @eslint/eslintrc/lib/config-array-factory.js
+  '@eslint/eslintrc': Object.assign({}, eslintRC, {
+    '@global': true
+  }),
+  '../shared/relative-module-resolver': moduleResolver, // in eslint < 7.12, from eslint/lib/cli-engine/config-array-factory.js
   'eslint-plugin-plugin': {
     rules: {
       'duplicate-foo-rule': {},
