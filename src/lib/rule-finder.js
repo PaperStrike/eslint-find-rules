@@ -18,28 +18,38 @@ function _getConfigFile(specifiedFile) {
   return require(path.join(process.cwd(), 'package.json')).main;
 }
 
-function _getConfigs(configFile, files) {
-  const cliEngine = eslint.ESLint
-    ?  new eslint.ESLint({
+async function _getConfigs(configFile, files) {
+  let isPathIgnored;
+  let getConfigForFile;
+
+  if (eslint.ESLint) {
+    const esLint = new eslint.ESLint({
       // Ignore any config applicable depending on the location on the filesystem
       useEslintrc: false,
       // Point to the particular config
       overrideConfigFile: configFile
-    })
-    : new eslint.CLIEngine({
+    });
+    isPathIgnored = esLint.isPathIgnored.bind(esLint);
+    getConfigForFile = esLint.calculateConfigForFile.bind(esLint);
+  } else {
+    const cliEngine = new eslint.CLIEngine({
       // Ignore any config applicable depending on the location on the filesystem
       useEslintrc: false,
       // Point to the particular config
       configFile
     });
+    isPathIgnored = cliEngine.isPathIgnored.bind(cliEngine);
+    getConfigForFile = cliEngine.getConfigForFile.bind(cliEngine);
+  }
 
-  return new Set(files
-                 .map(filePath => cliEngine.isPathIgnored(filePath) ? false : cliEngine.getConfigForFile(filePath))
-                 .filter(Boolean));
+  const configs = files.map(async filePath => (
+    await isPathIgnored(filePath) ? false : getConfigForFile(filePath)
+  ));
+  return new Set((await Promise.all(configs)).filter(Boolean));
 }
 
-function _getConfig(configFile, files) {
-  return Array.from(_getConfigs(configFile, files)).reduce((prev, item) => {
+async function _getConfig(configFile, files) {
+  return Array.from(await _getConfigs(configFile, files)).reduce((prev, item) => {
     return Object.assign(prev, item, {rules: Object.assign({}, prev.rules, item.rules)});
   }, {});
 }
@@ -98,14 +108,7 @@ function _createExtensionRegExp(extensions) {
   return new RegExp(`.\\.(?:${normalizedExts.join("|")})$`);
 }
 
-function RuleFinder(specifiedFile, {omitCore, includeDeprecated, ext = ['.js']}) {
-  const configFile = _getConfigFile(specifiedFile);
-
-  const extensionRegExp = _createExtensionRegExp(ext);
-  const files = glob.sync(`**/*`, {dot: true, matchBase: true})
-    .filter(file => extensionRegExp.test(file));
-
-  const config = _getConfig(configFile, files);
+function RuleFinder(config, {omitCore, includeDeprecated}) {
   let currentRuleNames = _getCurrentNamesRules(config);
   if (omitCore) {
     currentRuleNames = currentRuleNames.filter(_isNotCore);
@@ -143,6 +146,19 @@ function RuleFinder(specifiedFile, {omitCore, includeDeprecated, ext = ['.js']})
   this.getDeprecatedRules = () => getSortedRules(deprecatedRuleNames);
 }
 
+async function createRuleFinder(specifiedFile, options) {
+  const configFile = _getConfigFile(specifiedFile);
+
+  const {ext = ['.js']} = options;
+  const extensionRegExp = _createExtensionRegExp(ext);
+  const files = glob.sync(`**/*`, {dot: true, matchBase: true})
+    .filter(file => extensionRegExp.test(file));
+
+  const config = await _getConfig(configFile, files);
+
+  return new RuleFinder(config, options);
+}
+
 module.exports = function (specifiedFile, options = {}) {
-  return new RuleFinder(specifiedFile, options);
+  return createRuleFinder(specifiedFile, options);
 };

@@ -174,72 +174,72 @@ describe('rule-finder', function() {
     process.cwd = processCwd;
   });
 
-  it('no specifiedFile - unused rules', () => {
+  it('no specifiedFile - unused rules', async () => {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = getRuleFinder();
+    const ruleFinder = await getRuleFinder();
     assertDeepEqual(ruleFinder.getUnusedRules(), ['bar-rule', 'baz-rule']);
   });
 
-  it('no specifiedFile - unused rules including deprecated', () => {
+  it('no specifiedFile - unused rules including deprecated', async () => {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = getRuleFinder(null, {includeDeprecated: true});
+    const ruleFinder = await getRuleFinder(null, {includeDeprecated: true});
     assertDeepEqual(ruleFinder.getUnusedRules(), ['bar-rule', 'baz-rule', 'old-rule']);
   });
 
-  it('no specifiedFile - current rules', () => {
+  it('no specifiedFile - current rules', async () => {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = getRuleFinder();
+    const ruleFinder = await getRuleFinder();
     assertDeepEqual(ruleFinder.getCurrentRules(), ['foo-rule']);
   });
 
-  it('no specifiedFile - current rule config', () => {
+  it('no specifiedFile - current rule config', async () => {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = getRuleFinder();
+    const ruleFinder = await getRuleFinder();
     assertDeepEqual(ruleFinder.getCurrentRulesDetailed(), {'foo-rule': [2]});
   });
 
-  it('no specifiedFile - plugin rules', () => {
+  it('no specifiedFile - plugin rules', async () => {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = getRuleFinder();
+    const ruleFinder = await getRuleFinder();
     assertDeepEqual(ruleFinder.getPluginRules(), []);
   });
 
-  it('no specifiedFile - all available rules', () => {
+  it('no specifiedFile - all available rules', async () => {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = getRuleFinder();
+    const ruleFinder = await getRuleFinder();
     assertDeepEqual(ruleFinder.getAllAvailableRules(), ['bar-rule', 'baz-rule', 'foo-rule']);
   });
 
-  it('no specifiedFile - all available rules without core', () => {
+  it('no specifiedFile - all available rules without core', async () => {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = getRuleFinder(null, {omitCore: true});
+    const ruleFinder = await getRuleFinder(null, {omitCore: true});
     assertDeepEqual(ruleFinder.getAllAvailableRules(), []);
   });
 
-  it('no specifiedFile - all available rules including deprecated', () => {
+  it('no specifiedFile - all available rules including deprecated', async () => {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = getRuleFinder(null, {includeDeprecated: true});
+    const ruleFinder = await getRuleFinder(null, {includeDeprecated: true});
     assertDeepEqual(ruleFinder.getAllAvailableRules(), ['bar-rule', 'baz-rule', 'foo-rule', 'old-rule']);
   });
 
-  it('specifiedFile (relative path) - unused rules', () => {
-    const ruleFinder = getRuleFinder(specifiedFileRelative);
+  it('specifiedFile (relative path) - unused rules', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileRelative);
     assertDeepEqual(ruleFinder.getUnusedRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/scoped-with-dash-plugin/bar-rule',
@@ -252,8 +252,8 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('specifiedFile (relative path) - unused rules including deprecated', () => {
-    const ruleFinder = getRuleFinder(specifiedFileRelative, {includeDeprecated: true});
+  it('specifiedFile (relative path) - unused rules including deprecated', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {includeDeprecated: true});
     assertDeepEqual(ruleFinder.getUnusedRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/old-plugin-rule',
@@ -272,8 +272,8 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('specifiedFile (relative path) - current rules', () => {
-    const ruleFinder = getRuleFinder(specifiedFileRelative);
+  it('specifiedFile (relative path) - current rules', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileRelative);
     assertDeepEqual(ruleFinder.getCurrentRules(), [
       '@scope-with-dash/foo-rule',
       '@scope-with-dash/scoped-with-dash-plugin/foo-rule',
@@ -284,8 +284,8 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('specifiedFile (relative path) - current rules with ext', () => {
-    const ruleFinder = getRuleFinder(specifiedFileRelative, { ext: ['.json'] });
+  it('specifiedFile (relative path) - current rules with ext', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, { ext: ['.json'] });
     assertDeepEqual(ruleFinder.getCurrentRules(), [
       '@scope-with-dash/foo-rule',
       '@scope-with-dash/scoped-with-dash-plugin/foo-rule',
@@ -296,8 +296,8 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('specifiedFile (relative path) - current rules with ext without dot', () => {
-    const ruleFinder = getRuleFinder(specifiedFileRelative, { ext: ['json'] });
+  it('specifiedFile (relative path) - current rules with ext without dot', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, { ext: ['json'] });
     assertDeepEqual(ruleFinder.getCurrentRules(), [
       '@scope-with-dash/foo-rule',
       '@scope-with-dash/scoped-with-dash-plugin/foo-rule',
@@ -308,13 +308,13 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('specifiedFile (relative path) - current rules with ext not found', () => {
-    const ruleFinder = getRuleFinder(specifiedFileRelative, { ext: ['.ts'] });
+  it('specifiedFile (relative path) - current rules with ext not found', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, { ext: ['.ts'] });
     assertDeepEqual(ruleFinder.getCurrentRules(), []);
   });
 
-  it('specifiedFile (relative path) - current rule config', () => {
-    const ruleFinder = getRuleFinder(specifiedFileRelative);
+  it('specifiedFile (relative path) - current rule config', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileRelative);
     assertDeepEqual(ruleFinder.getCurrentRulesDetailed(), {
       '@scope-with-dash/foo-rule': [2],
       '@scope-with-dash/scoped-with-dash-plugin/foo-rule': [2],
@@ -325,8 +325,8 @@ describe('rule-finder', function() {
     });
   });
 
-  it('specifiedFile (relative path) - plugin rules', () => {
-    const ruleFinder = getRuleFinder(specifiedFileRelative);
+  it('specifiedFile (relative path) - plugin rules', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileRelative);
     assertDeepEqual(ruleFinder.getPluginRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/foo-rule',
@@ -342,8 +342,8 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('specifiedFile (relative path) - plugin rules including deprecated', () => {
-    const ruleFinder = getRuleFinder(specifiedFileRelative, {includeDeprecated: true});
+  it('specifiedFile (relative path) - plugin rules including deprecated', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {includeDeprecated: true});
     assertDeepEqual(ruleFinder.getPluginRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/foo-rule',
@@ -364,8 +364,8 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('specifiedFile (relative path) - all available rules', () => {
-    const ruleFinder = getRuleFinder(specifiedFileRelative);
+  it('specifiedFile (relative path) - all available rules', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileRelative);
     assertDeepEqual(
       ruleFinder.getAllAvailableRules(),
       [
@@ -387,8 +387,8 @@ describe('rule-finder', function() {
     );
   });
 
-  it('specifiedFile (relative path) - all available rules without core', () => {
-    const ruleFinder = getRuleFinder(specifiedFileRelative, {omitCore: true});
+  it('specifiedFile (relative path) - all available rules without core', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {omitCore: true});
     assertDeepEqual(
       ruleFinder.getAllAvailableRules(),
       [
@@ -407,8 +407,8 @@ describe('rule-finder', function() {
     );
   });
 
-  it('specifiedFile (relative path) - all available rules including deprecated', () => {
-    const ruleFinder = getRuleFinder(specifiedFileRelative, {includeDeprecated: true});
+  it('specifiedFile (relative path) - all available rules including deprecated', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {includeDeprecated: true});
     assertDeepEqual(
       ruleFinder.getAllAvailableRules(),
       [
@@ -436,8 +436,8 @@ describe('rule-finder', function() {
     );
   });
 
-  it('specifiedFile (absolute path) - unused rules', () => {
-    const ruleFinder = getRuleFinder(specifiedFileAbsolute);
+  it('specifiedFile (absolute path) - unused rules', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute);
     assertDeepEqual(ruleFinder.getUnusedRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/scoped-with-dash-plugin/bar-rule',
@@ -450,8 +450,8 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('specifiedFile (absolute path) - unused rules', () => {
-    const ruleFinder = getRuleFinder(specifiedFileAbsolute, {includeDeprecated: true});
+  it('specifiedFile (absolute path) - unused rules', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {includeDeprecated: true});
     assertDeepEqual(ruleFinder.getUnusedRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/old-plugin-rule',
@@ -470,8 +470,8 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('specifiedFile (absolute path) - current rules', () => {
-    const ruleFinder = getRuleFinder(specifiedFileAbsolute);
+  it('specifiedFile (absolute path) - current rules', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute);
     assertDeepEqual(ruleFinder.getCurrentRules(), [
       '@scope-with-dash/foo-rule',
       '@scope-with-dash/scoped-with-dash-plugin/foo-rule',
@@ -482,8 +482,8 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('specifiedFile (absolute path) - current rule config', () => {
-    const ruleFinder = getRuleFinder(specifiedFileAbsolute);
+  it('specifiedFile (absolute path) - current rule config', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute);
     assertDeepEqual(ruleFinder.getCurrentRulesDetailed(), {
       '@scope-with-dash/foo-rule': [2],
       '@scope-with-dash/scoped-with-dash-plugin/foo-rule': [2],
@@ -494,8 +494,8 @@ describe('rule-finder', function() {
     });
   });
 
-  it('specifiedFile (absolute path) - plugin rules', () => {
-    const ruleFinder = getRuleFinder(specifiedFileAbsolute);
+  it('specifiedFile (absolute path) - plugin rules', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute);
     assertDeepEqual(ruleFinder.getPluginRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/foo-rule',
@@ -511,8 +511,8 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('specifiedFile (absolute path) - plugin rules including deprecated', () => {
-    const ruleFinder = getRuleFinder(specifiedFileAbsolute, {includeDeprecated: true});
+  it('specifiedFile (absolute path) - plugin rules including deprecated', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {includeDeprecated: true});
     assertDeepEqual(ruleFinder.getPluginRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/foo-rule',
@@ -533,8 +533,8 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('specifiedFile (absolute path) - all available rules', () => {
-    const ruleFinder = getRuleFinder(specifiedFileAbsolute);
+  it('specifiedFile (absolute path) - all available rules', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute);
     assertDeepEqual(
       ruleFinder.getAllAvailableRules(),
       [
@@ -556,8 +556,8 @@ describe('rule-finder', function() {
     );
   });
 
-  it('specifiedFile (absolute path) - all available rules including deprecated', () => {
-    const ruleFinder = getRuleFinder(specifiedFileAbsolute, {includeDeprecated: true});
+  it('specifiedFile (absolute path) - all available rules including deprecated', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {includeDeprecated: true});
     assertDeepEqual(
       ruleFinder.getAllAvailableRules(),
       [
@@ -585,8 +585,8 @@ describe('rule-finder', function() {
     );
   });
 
-  it('specifiedFile (absolute path) without rules - plugin rules', () => {
-    const ruleFinder = getRuleFinder(noRulesFile);
+  it('specifiedFile (absolute path) without rules - plugin rules', async () => {
+    const ruleFinder = await getRuleFinder(noRulesFile);
     assertDeepEqual(ruleFinder.getPluginRules(), [
       'plugin/bar-rule',
       'plugin/baz-rule',
@@ -594,8 +594,8 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('dedupes plugin rules - all available rules', () => {
-    const ruleFinder = getRuleFinderForDedupeTests(noDuplicateRulesFiles);
+  it('dedupes plugin rules - all available rules', async () => {
+    const ruleFinder = await getRuleFinderForDedupeTests(noDuplicateRulesFiles);
     assertDeepEqual(ruleFinder.getAllAvailableRules(), [
       'bar-rule',
       'foo-rule',
@@ -604,21 +604,21 @@ describe('rule-finder', function() {
     ]);
   });
 
-  it('dedupes plugin rules - unused rules', () => {
-    const ruleFinder = getRuleFinderForDedupeTests(noDuplicateRulesFiles);
+  it('dedupes plugin rules - unused rules', async () => {
+    const ruleFinder = await getRuleFinderForDedupeTests(noDuplicateRulesFiles);
     assertDeepEqual(ruleFinder.getUnusedRules(), [
       'bar-rule',
       'plugin/duplicate-foo-rule'
     ]);
   });
 
-  it('specifiedFile (absolute path) without deprecated rules - deprecated rules', () => {
-    const ruleFinder = getRuleFinder(specifiedFileAbsolute);
+  it('specifiedFile (absolute path) without deprecated rules - deprecated rules', async () => {
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute);
     assertDeepEqual(ruleFinder.getDeprecatedRules(), []);
   });
 
-  it('specifiedFile (absolute path) with deprecated rules - deprecated rules', () => {
-    const ruleFinder = getRuleFinder(usingDeprecatedRulesFile);
+  it('specifiedFile (absolute path) with deprecated rules - deprecated rules', async () => {
+    const ruleFinder = await getRuleFinder(usingDeprecatedRulesFile);
     assertDeepEqual(ruleFinder.getDeprecatedRules(), [
       '@scope-with-dash/old-plugin-rule',
       '@scope-with-dash/scoped-with-dash-plugin/old-plugin-rule',
