@@ -11,13 +11,24 @@ const processCwd = process.cwd;
 const eslintVersion = semver.satisfies(eslintPkg.version, '< 5') ? 'prior-v5' : 'post-v5';
 const supportsScopedPlugins = semver.satisfies(eslintPkg.version, '>= 5');
 
-// The strategy is simple: if called with one of our plugins, just return
-// the module name, as-is. This is a lie because what we return is not a
-// path, but it is simple, and works. Otherwise, we just call the original
-// `resolve` from the stock module.
-const mockResolve = (plugins, relative, name) => (
-  plugins.includes(name) ? name : createRequire(relative).resolve(name)
-);
+const mockCreateRequire = (getExport, plugins, relative) => {
+  // Use the mocked require.
+  const moduleRequire = (id) => {
+    const targetExport = getExport();
+    return module.children
+      .find((m) => m.exports === targetExport)
+      .require(id);
+  };
+  return Object.assign(moduleRequire, {
+    // The strategy is simple: if called with one of our plugins, just return
+    // the module name, as-is. This is a lie because what we return is not a
+    // path, but it is simple, and works. Otherwise, we just call the original
+    // `resolve` from the stock module.
+    resolve: (name) => (
+      plugins.includes(name) ? name : createRequire(relative).resolve(name)
+    )
+  });
+};
 
 const getRuleFinder = proxyquire('../../src/lib/rule-finder', {
   eslint: {
@@ -32,16 +43,18 @@ const getRuleFinder = proxyquire('../../src/lib/rule-finder', {
     }
   },
   module: {
-    createRequire: (relative) => Object.assign((id) => require(id), {
-      resolve: mockResolve.bind(null, [
+    createRequire: (relative) => mockCreateRequire(
+      () => getRuleFinder,
+      [
         'eslint-plugin-plugin',
         'eslint-plugin-no-rules',
         '@scope/eslint-plugin-scoped-plugin',
         '@scope/eslint-plugin',
         '@scope-with-dash/eslint-plugin-scoped-with-dash-plugin',
         '@scope-with-dash/eslint-plugin'
-      ], relative)
-    }),
+      ],
+      relative
+    ),
     '@global': true
   },
   'eslint-plugin-plugin': {
@@ -127,11 +140,13 @@ const getRuleFinderForDedupeTests = proxyquire('../../src/lib/rule-finder', {
     }
   },
   module: {
-    createRequire: (relative) => Object.assign((id) => require(id), {
-      resolve: mockResolve.bind(null, [
+    createRequire: (relative) => mockCreateRequire(
+      () => getRuleFinderForDedupeTests,
+      [
         'eslint-plugin-plugin'
-      ], relative)
-    }),
+      ],
+      relative
+    ),
     '@global': true
   },
   'eslint-plugin-plugin': {
