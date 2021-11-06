@@ -1,5 +1,5 @@
 const path = require('path');
-const module = require('module');
+const createRequire = require('create-require');
 const assert = require('assert');
 const proxyquire = require('proxyquire');
 
@@ -16,7 +16,7 @@ const supportsScopedPlugins = semver.satisfies(eslintPkg.version, '>= 5');
 // path, but it is simple, and works. Otherwise, we just call the original
 // `resolve` from the stock module.
 const mockResolve = (plugins, relative, name) => (
-  plugins.includes(name) ? name : module.createRequire(relative).resolve(name)
+  plugins.includes(name) ? name : createRequire(relative).resolve(name)
 );
 
 const getRuleFinder = proxyquire('../../src/lib/rule-finder', {
